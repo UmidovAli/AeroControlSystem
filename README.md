@@ -42,11 +42,28 @@
 
 ---
 
+1.Создание и реализация бизнес-домена:
+
+Cсылка на диск: https://disk.yandex.ru/i/ydtGLArvpG1ozg
+
+2.Создание сиквенс-диаграммы, диаграммы классов и flowchart'а
+
 ## Диаграммы
 
-### Диаграмма последовательностей (Sequence Diagram)
-Визуализирует взаимодействие между элементами: источник → диспетчер → буфер → прибор.
-![Диаграмма](Sequence Diagram (Диаграмма последовательностей).png)
+### Sequence Diagram (Диаграмма последовательностей)
+Диаграмма последовательностей — показывает движение пассажира через систему (Источник → Диспетчер → Буфер → Прибор):
 <p align="center">
-  <img src="Sequence Diagram (Диаграмма последовательностей).png" width="400" alt="Диаграмма">
+  <img src="Sequence Diagram (Диаграмма последовательностей).png" width="600" alt="Диаграмма">
+</p>
+
+### Class Diagram (Диаграмма классов)
+Диаграмма классов — отражает архитектуру системы (Buffer, Dispatcher, Inspector, Passenger):
+<p align="center">
+  <img src="Class Diagram (Диаграмма классов).png" width="400" alt="Диаграмма">
+</p>
+
+### Flowchart_Activity_Process Chart (Блок-схема)
+Блок-схема (Flowchart) — описывает алгоритм действий системы при поступлении пассажира:
+<p align="center">
+  <img src="Flowchart_Activity_Process Chart (Блок-схема.png" width="400" alt="Диаграмма">
 </p>
