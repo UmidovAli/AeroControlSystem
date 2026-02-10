@@ -1,9 +1,15 @@
-#include <bits/stdc++.h>
+#include <iostream>
+#include <vector>
+#include <random>
+#include <queue>
+#include <algorithm>
+#include <numeric>
+
 using namespace std;
 
 // -------------------- CONFIG ------------------------
-const double SIM_TIME = 1000.0;     // РѕР±С‰Р°СЏ СЃРёРјСѓР»СЏС†РёСЏ РІСЂРµРјРµРЅРё
-const double ARRIVAL_RATE = 0.05;   // lambda РґР»СЏ РџСѓР°СЃСЃРѕРЅР°
+const double SIM_TIME = 1000.0;     // общая симуляция времени
+const double ARRIVAL_RATE = 0.05;   // lambda для Пуассона
 const double SERVICE_LOW = 5.0;
 const double SERVICE_HIGH = 15.0;
 const int NUM_SERVERS = 3;
@@ -40,8 +46,8 @@ struct Event {
     double time;
     int priority;
     EventType type;
-    int server_id;        // РЅСѓР¶РµРЅ РґР»СЏ SERVICE_COMPLETE
-    Passenger* passenger; // РЅСѓР¶РµРЅ РґР»СЏ ARRIVAL
+    int server_id;        // нужен для SERVICE_COMPLETE
+    Passenger* passenger; // нужен для ARRIVAL
     bool operator<(const Event& other) const {
         return time > other.time; // min-heap
     }
@@ -51,7 +57,7 @@ struct Event {
 class QueueBuffer {
     int capacity;
     vector<Passenger*> buffer;
-    vector<int> index_order; // РїРѕСЂСЏРґРѕРє РїРѕСЃС‚СѓРїР»РµРЅРёСЏ
+    vector<int> index_order; // порядок поступления
     int head = 0;
     int tail = 0;
     int size = 0;
@@ -63,7 +69,7 @@ public:
     int len() { return size; }
 
     void enqueue(Passenger* p) {
-        if(is_full()) throw runtime_error("enqueue on full buffer");
+        if (is_full()) throw runtime_error("enqueue on full buffer");
         buffer[tail] = p;
         index_order.push_back(tail);
         tail = (tail + 1) % capacity;
@@ -71,32 +77,33 @@ public:
     }
 
     Passenger* remove_oldest() {
-        if(size == 0) throw runtime_error("remove_oldest on empty buffer");
+        if (size == 0) throw runtime_error("remove_oldest on empty buffer");
         int oldest_index = index_order.front();
         index_order.erase(index_order.begin());
         Passenger* p = buffer[oldest_index];
         buffer[oldest_index] = nullptr;
         size--;
-        while(size > 0 && buffer[head] == nullptr)
+        while (size > 0 && buffer[head] == nullptr)
             head = (head + 1) % capacity;
         return p;
     }
 
     Passenger* dequeue_next_circular() {
-        if(size == 0) throw runtime_error("dequeue on empty buffer");
+        if (size == 0) throw runtime_error("dequeue on empty buffer");
         int attempts = 0;
-        while(attempts < capacity) {
+        while (attempts < capacity) {
             int idx = circular_pointer % capacity;
-            if(buffer[idx] != nullptr) {
+            if (buffer[idx] != nullptr) {
                 Passenger* p = buffer[idx];
                 buffer[idx] = nullptr;
                 index_order.erase(remove(index_order.begin(), index_order.end(), idx), index_order.end());
                 circular_pointer = (idx + 1) % capacity;
                 size--;
-                while(size > 0 && buffer[head] == nullptr)
+                while (size > 0 && buffer[head] == nullptr)
                     head = (head + 1) % capacity;
                 return p;
-            } else {
+            }
+            else {
                 circular_pointer = (circular_pointer + 1) % capacity;
                 attempts++;
             }
@@ -110,7 +117,7 @@ struct Server {
     int id;
     bool busy = false;
     Passenger* current = nullptr;
-    vector<pair<double,double>> timeline; // busy intervals
+    vector<pair<double, double>> timeline; // busy intervals
 
     void serve(Passenger* p, double now) {
         busy = true;
@@ -119,9 +126,9 @@ struct Server {
     }
 
     void release(double now) {
-        if(current) {
+        if (current) {
             current->end_service_time = now;
-            timeline.push_back({current->start_service_time, current->end_service_time});
+            timeline.push_back({ current->start_service_time, current->end_service_time });
             current = nullptr;
         }
         busy = false;
@@ -133,10 +140,10 @@ struct Statistics {
     vector<Passenger*> served;
     vector<Passenger*> rejected;
     vector<double> wait_times;
-    vector<pair<double,int>> queue_history;
+    vector<pair<double, int>> queue_history;
 
     void record_enqueue(double t, int qlen) {
-        queue_history.push_back({t, qlen});
+        queue_history.push_back({ t, qlen });
     }
 
     void record_service(Passenger* p) {
@@ -150,23 +157,23 @@ struct Statistics {
     }
 
     void print_summary(vector<Server>& servers, double sim_time) {
-        double avg_wait = wait_times.empty() ? 0.0 : accumulate(wait_times.begin(), wait_times.end(), 0.0)/wait_times.size();
+        double avg_wait = wait_times.empty() ? 0.0 : accumulate(wait_times.begin(), wait_times.end(), 0.0) / wait_times.size();
         vector<double> utilizations;
-        for(auto& s: servers) {
+        for (auto& s : servers) {
             double busy_time = 0;
-            for(auto& iv: s.timeline) busy_time += iv.second - iv.first;
+            for (auto& iv : s.timeline) busy_time += iv.second - iv.first;
             utilizations.push_back(busy_time / sim_time);
         }
-        double avg_util = utilizations.empty() ? 0.0 : accumulate(utilizations.begin(), utilizations.end(), 0.0)/utilizations.size();
+        double avg_util = utilizations.empty() ? 0.0 : accumulate(utilizations.begin(), utilizations.end(), 0.0) / utilizations.size();
         double avg_queue_len = queue_history.empty() ? 0.0 : accumulate(queue_history.begin(), queue_history.end(), 0.0,
-            [](double sum, pair<double,int> p){return sum + p.second;}) / queue_history.size();
+            [](double sum, pair<double, int> p) {return sum + p.second; }) / queue_history.size();
 
         cout << "Served: " << served.size() << "\n";
         cout << "Rejected: " << rejected.size() << "\n";
         cout << "Average wait: " << avg_wait << "\n";
         cout << "Average server utilization: " << avg_util << "\n";
         cout << "Average queue length: " << avg_queue_len << "\n";
-        for(int i=0;i<servers.size();i++)
+        for (int i = 0; i < servers.size(); i++)
             cout << "Server " << servers[i].id << " utilization: " << utilizations[i] << "\n";
     }
 };
@@ -184,31 +191,31 @@ class InspectionSystem {
 
 public:
     InspectionSystem() : buffer(BUFFER_SIZE), servers(NUM_SERVERS) {
-        for(int i=0;i<NUM_SERVERS;i++) servers[i].id = i+1;
+        for (int i = 0; i < NUM_SERVERS; i++) servers[i].id = i + 1;
     }
 
     void schedule_event(double t, int priority, EventType type, int server_id, Passenger* p) {
-        event_queue.push({t, priority, type, server_id, p});
+        event_queue.push({ t, priority, type, server_id, p });
     }
 
     Server* find_free_server_lowest() {
-        for(auto& s: servers)
-            if(!s.busy) return &s;
+        for (auto& s : servers)
+            if (!s.busy) return &s;
         return nullptr;
     }
 
     void start() {
-        // РїРµСЂРІР°СЏ РїСЂРёР±С‹С‚РёРµ
+        // первая прибытие
         next_arrival_time = exponential(ARRIVAL_RATE);
         schedule_event(next_arrival_time, 1, ARRIVAL, -1, nullptr);
 
-        while(!event_queue.empty()) {
+        while (!event_queue.empty()) {
             Event ev = event_queue.top(); event_queue.pop();
-            if(ev.time > SIM_TIME) break;
+            if (ev.time > SIM_TIME) break;
             now = ev.time;
 
-            if(ev.type == ARRIVAL) handle_arrival();
-            else if(ev.type == SERVICE_COMPLETE) handle_service_complete(ev.server_id);
+            if (ev.type == ARRIVAL) handle_arrival();
+            else if (ev.type == SERVICE_COMPLETE) handle_service_complete(ev.server_id);
         }
 
         stats.print_summary(servers, SIM_TIME);
@@ -216,25 +223,27 @@ public:
 
     void handle_arrival() {
         passenger_counter++;
-        Passenger* p = new Passenger{passenger_counter, now};
+        Passenger* p = new Passenger{ passenger_counter, now };
 
-        // РїР»Р°РЅРёСЂСѓРµРј СЃР»РµРґСѓСЋС‰РµРµ РїСЂРёР±С‹С‚РёРµ
+        // планируем следующее прибытие
         double ia = exponential(ARRIVAL_RATE);
         next_arrival_time = now + ia;
         schedule_event(next_arrival_time, 1, ARRIVAL, -1, nullptr);
 
-        // РёС‰РµРј СЃРІРѕР±РѕРґРЅС‹Р№ СЃРµСЂРІРµСЂ
+        // ищем свободный сервер
         Server* free = find_free_server_lowest();
-        if(free) {
+        if (free) {
             p->service_time = uniform_service();
             free->serve(p, now);
             schedule_event(now + p->service_time, 2, SERVICE_COMPLETE, free->id, nullptr);
             stats.record_service(p);
-        } else {
-            if(!buffer.is_full()) {
+        }
+        else {
+            if (!buffer.is_full()) {
                 buffer.enqueue(p);
                 stats.record_enqueue(now, buffer.len());
-            } else {
+            }
+            else {
                 Passenger* oldest = buffer.remove_oldest();
                 stats.record_rejection(oldest);
                 buffer.enqueue(p);
@@ -244,10 +253,10 @@ public:
     }
 
     void handle_service_complete(int server_id) {
-        Server& s = servers[server_id-1];
+        Server& s = servers[server_id - 1];
         s.release(now);
 
-        if(buffer.len() > 0) {
+        if (buffer.len() > 0) {
             Passenger* next_p = buffer.dequeue_next_circular();
             next_p->service_time = uniform_service();
             s.serve(next_p, now);
